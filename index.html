@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>H-Project: 5ha Hybrid Logistics Hub Investment Analysis</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- 
+    Chosen Palette: "Trusted Financial Blue"
+    - Background: Slate-50 (#f8fafc)
+    - Primary Text: Slate-900 (#0f172a)
+    - Primary Brand: Blue-900 (#1e3a8a) - Trust, Corporate, Stability
+    - Secondary Brand: Emerald-700 (#047857) - Profitability, Growth, Safety
+    - Accent: Amber-500 (#f59e0b) - Highlights, Alerts
+    -->
+
+    <!-- 
+    Application Structure Plan:
+    1. Executive Dashboard: Immediate view of KPIs (IRR, CAPEX, NPV) to answer the "Is this profitable?" question first.
+    2. Project Context: Brief confirmation of location and scope (5ha Hybrid) to set the baseline.
+    3. Investment Analysis (CAPEX): Detailed breakdown of the $20.5M investment, focusing on the specific cost drivers (Land Leveling, Cold Storage Equipment).
+    4. Operational Analysis (Revenue/OPEX): Interactive scenario modeling (Conservative/Average/Aggressive) affecting Rent and Occupancy.
+    5. Financial Projections: 10-Year Cash Flow visualization and Sensitivity Analysis (FX, Power Costs).
+    6. Benchmarks: Comparative market data to validate assumptions.
+    7. Strategic Conclusion: Final Go/No-Go recommendation and risk mitigation strategies.
+    
+    Why this structure?
+    It follows the cognitive flow of an investor: Result -> Cost -> Revenue Driver -> Risk -> Comparative Validation -> Decision.
+    -->
+
+    <!-- 
+    Visualization & Content Choices:
+    1. Doughnut Chart (CAPEX): To show the significant weight of MEP & Cold Equipment vs. Civil Works.
+    2. Bar/Line Mixed Chart (Cash Flow): To visualize the "J-Curve" of investment recovery and EBITDA growth.
+    3. Horizontal Bar (Sensitivity): To clearly show which external factors (Power cost vs. Rent) impact IRR most.
+    4. Comparison Cards (Scenarios): Instant toggling between Conservative/Avg/Aggressive to see impact on bottom line.
+    
+    CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. All visuals are CSS/HTML or Chart.js Canvas.
+    -->
+
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            max-width: 800px; /* Prevent charts from getting too wide on large screens */
+            margin: 0 auto;
+        }
+        .section-card {
+            background-color: white;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid #e2e8f0;
+        }
+        .kpi-card {
+            transition: all 0.3s ease;
+        }
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .nav-btn.active {
+            background-color: #1e3a8a;
+            color: white;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Top Navigation / Header -->
+    <header class="bg-slate-900 text-white sticky top-0 z-50 shadow-lg">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold tracking-tight">TD Pacific H-Project Analysis</h1>
+                <p class="text-xs md:text-sm text-slate-400">Hung Yen Tan Dan 5ha Hybrid Logistics Hub</p>
+            </div>
+            <div class="text-right hidden md:block">
+                <span class="bg-emerald-600 text-white text-xs px-2 py-1 rounded">Investment Approval Status: Reviewed</span>
+                <p class="text-xs mt-1 text-slate-400">Date: Feb 2026</p>
+            </div>
+        </div>
+        <!-- Mobile/Tablet Scroller -->
+        <nav class="bg-slate-800 overflow-x-auto whitespace-nowrap">
+            <div class="container mx-auto px-4 flex space-x-4 py-2 text-sm">
+                <button onclick="scrollToSection('summary')" class="hover:text-emerald-400 transition-colors">요약 (Summary)</button>
+                <button onclick="scrollToSection('capex')" class="hover:text-emerald-400 transition-colors">투자비 (CAPEX)</button>
+                <button onclick="scrollToSection('revenue')" class="hover:text-emerald-400 transition-colors">수익성 (Revenue)</button>
+                <button onclick="scrollToSection('financials')" class="hover:text-emerald-400 transition-colors">재무지표 (Finance)</button>
+                <button onclick="scrollToSection('benchmarks')" class="hover:text-emerald-400 transition-colors">벤치마크 (Market)</button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-7xl">
+
+        <!-- 1. Executive Summary & Scenario Selector -->
+        <section id="summary" class="mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-900">투자 분석 요약 (Executive Summary)</h2>
+                    <p class="text-slate-600 mt-2">냉동 40% + 일반 60% 하이브리드 보세 물류센터 (Tan Dan, Hung Yen)</p>
+                </div>
+                
+                <!-- Scenario Toggle -->
+                <div class="bg-white p-1 rounded-lg border border-slate-200 shadow-sm flex">
+                    <button onclick="updateScenario('conservative')" id="btn-conservative" class="nav-btn px-4 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">보수적 (Risk)</button>
+                    <button onclick="updateScenario('average')" id="btn-average" class="nav-btn active px-4 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">평균 (Base)</button>
+                    <button onclick="updateScenario('aggressive')" id="btn-aggressive" class="nav-btn px-4 py-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">공격적 (Target)</button>
+                </div>
+            </div>
+
+            <!-- KPI Cards Dynamic Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- CAPEX Card -->
+                <div class="kpi-card bg-white p-6 rounded-xl shadow border-l-4 border-blue-900">
+                    <p class="text-sm font-semibold text-slate-500 uppercase">총 투자비 (Total CAPEX)</p>
+                    <h3 class="text-3xl font-bold text-slate-900 mt-2" id="kpi-capex">$20.50 M</h3>
+                    <p class="text-sm text-slate-600 mt-1">평당 약 <span id="kpi-unit-cost">$750</span>/m²</p>
+                    <div class="mt-4 text-xs text-blue-800 bg-blue-50 px-2 py-1 rounded inline-block">5ha 확장 및 성토비 반영</div>
+                </div>
+
+                <!-- IRR Card -->
+                <div class="kpi-card bg-white p-6 rounded-xl shadow border-l-4 border-emerald-600">
+                    <p class="text-sm font-semibold text-slate-500 uppercase">내부수익률 (IRR)</p>
+                    <h3 class="text-3xl font-bold text-emerald-700 mt-2" id="kpi-irr">14.5%</h3>
+                    <p class="text-sm text-slate-600 mt-1">NPV: <span id="kpi-npv">$4.0M</span> (8%)</p>
+                    <div class="mt-4 text-xs text-emerald-800 bg-emerald-50 px-2 py-1 rounded inline-block">10년 보유 기준</div>
+                </div>
+
+                <!-- Revenue Card -->
+                <div class="kpi-card bg-white p-6 rounded-xl shadow border-l-4 border-indigo-500">
+                    <p class="text-sm font-semibold text-slate-500 uppercase">연간 안정화 매출</p>
+                    <h3 class="text-3xl font-bold text-slate-900 mt-2" id="kpi-revenue">$4.3 M</h3>
+                    <p class="text-sm text-slate-600 mt-1">EBITDA: <span id="kpi-ebitda">$2.9M</span></p>
+                    <div class="mt-4 text-xs text-indigo-800 bg-indigo-50 px-2 py-1 rounded inline-block">가동률 95% 기준</div>
+                </div>
+
+                <!-- Payback Card -->
+                <div class="kpi-card bg-white p-6 rounded-xl shadow border-l-4 border-amber-500">
+                    <p class="text-sm font-semibold text-slate-500 uppercase">투자회수기간 (Payback)</p>
+                    <h3 class="text-3xl font-bold text-slate-900 mt-2" id="kpi-payback">6.8 Years</h3>
+                    <p class="text-sm text-slate-600 mt-1">현금흐름 분기점</p>
+                    <div class="mt-4 text-xs text-amber-800 bg-amber-50 px-2 py-1 rounded inline-block">부채비율 70% 가정</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Project Overview & Specs -->
+        <section class="section-card">
+            <h3 class="text-xl font-bold text-slate-800 mb-4 border-b pb-2">📍 프로젝트 개요 및 시설 제원 (Project Overview)</h3>
+            <p class="text-slate-600 mb-6">
+                본 프로젝트는 하노이 중심부에서 남동쪽 25km 지점인 흥엔성 옌미-탄단(Yen My - Tan Dan) 클러스터에 위치합니다. 
+                기존 2ha 계획에서 5ha로 확장됨에 따라 '규모의 경제'를 실현하고, 보세(Bonded) 기능을 탑재하여 북부 하이테크 제조기업과 신선식품 수요를 동시에 흡수하는 전략적 허브입니다.
+            </p>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Specs Table -->
+                <div class="bg-slate-50 p-4 rounded-lg">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-500 uppercase border-b border-slate-200">
+                            <tr>
+                                <th class="py-2">구분</th>
+                                <th class="py-2">상세 내용</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            <tr>
+                                <td class="py-3 font-medium">대지면적</td>
+                                <td class="py-3">53,710 m² (약 5.37 ha)</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 font-medium">연면적 (GFA)</td>
+                                <td class="py-3">약 32,226 m² (건폐율 60% 가정)</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 font-medium">시설 구성 (Mix)</td>
+                                <td class="py-3 text-blue-700 font-bold">냉동(40%) + 일반(60%) + 보세구역</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 font-medium">인프라 현황</td>
+                                <td class="py-3">평탄화 진행중 (성토 추가 필요), 35kV 전력</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 font-medium">타겟 화주</td>
+                                <td class="py-3">삼성/LG 1차 벤더(전자부품), 수입 육류/수산물</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Logic Visualization (Canvas for Zoning) -->
+                <div class="flex flex-col justify-center items-center bg-white p-4 border rounded-lg">
+                    <h4 class="text-sm font-bold text-slate-500 mb-4">5ha 클러스터 조닝 계획 (Zoning Plan)</h4>
+                    <div class="relative w-full h-48 bg-slate-100 border-2 border-slate-300 rounded flex overflow-hidden">
+                        <!-- Cold Storage 40% -->
+                        <div class="w-2/5 h-full bg-blue-100 flex items-center justify-center flex-col border-r border-blue-200 relative group">
+                            <span class="text-blue-800 font-bold">Cold Chain</span>
+                            <span class="text-xs text-blue-600">40% Area</span>
+                            <span class="text-xs text-blue-500 mt-1">(-25°C ~ 10°C)</span>
+                            <div class="absolute inset-0 bg-blue-500 opacity-0 group-hover:opacity-10 transition-opacity cursor-pointer"></div>
+                        </div>
+                        <!-- General/Bonded 60% -->
+                        <div class="w-3/5 h-full bg-slate-200 flex flex-col">
+                            <div class="h-3/4 flex items-center justify-center flex-col border-b border-slate-300 relative group">
+                                <span class="text-slate-700 font-bold">General Dry</span>
+                                <span class="text-xs text-slate-500">Standard Warehouse</span>
+                                <div class="absolute inset-0 bg-slate-500 opacity-0 group-hover:opacity-10 transition-opacity cursor-pointer"></div>
+                            </div>
+                            <div class="h-1/4 bg-amber-50 flex items-center justify-center border-t border-amber-200 relative group">
+                                <span class="text-amber-700 text-xs font-bold">Bonded Area (보세구역)</span>
+                                <div class="absolute inset-0 bg-amber-500 opacity-0 group-hover:opacity-10 transition-opacity cursor-pointer"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2">*보세구역은 일반창고 구역 내 유동적으로 지정 가능 (가변형 벽체 활용)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. CAPEX & Investment Breakdown -->
+        <section id="capex" class="section-card">
+            <h3 class="text-xl font-bold text-slate-800 mb-2 border-b pb-2">🏗️ 1. 건설 및 총 투자비 산정 (CAPEX Breakdown)</h3>
+            <p class="text-slate-600 mb-6 text-sm">
+                5ha 확장 시 가장 큰 변수는 <strong>성토/기반시설 비용($2.5M)</strong>의 급증입니다. 
+                아래 데이터는 2024-2026년 베트남 북부 현 시세를 반영한 평균안($20.5M) 기준입니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <!-- CAPEX Chart -->
+                <div class="chart-container">
+                    <canvas id="capexChart"></canvas>
+                </div>
+
+                <!-- CAPEX Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-right border-collapse">
+                        <thead class="bg-slate-100 text-slate-600">
+                            <tr>
+                                <th class="p-3 text-left">항목 (Item)</th>
+                                <th class="p-3">단가 (USD/m²)</th>
+                                <th class="p-3">총액 (USD)</th>
+                                <th class="p-3">비중</th>
+                            </tr>
+                        </thead>
+                        <tbody id="capex-table-body" class="divide-y divide-slate-200">
+                            <!-- Populated by JS -->
+                        </tbody>
+                        <tfoot class="bg-slate-50 font-bold text-slate-900 border-t-2 border-slate-300">
+                            <tr>
+                                <td class="p-3 text-left">총 합계 (Total)</td>
+                                <td class="p-3">-</td>
+                                <td class="p-3" id="capex-total-display">$20,500,000</td>
+                                <td class="p-3">100%</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div class="mt-4 bg-amber-50 border border-amber-200 p-3 rounded text-xs text-amber-800">
+                        <strong>⚠️ 중요 Risk:</strong> 성토 및 연약지반 처리비용($2.5M)이 전체 예산의 12%를 차지합니다. 
+                        토지주와 협의 시 이 부분의 비용 분담(Equity 인정 등)이 핵심 협상 포인트입니다.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Revenue & Operating Scenarios -->
+        <section id="revenue" class="section-card">
+            <h3 class="text-xl font-bold text-slate-800 mb-2 border-b pb-2">📊 2. 운영 수익 및 시나리오 분석 (Revenue Analysis)</h3>
+            <p class="text-slate-600 mb-6 text-sm">
+                임대 수익은 냉동창고의 높은 단가($18~$22)에 의해 주도됩니다. 하이브리드 모델의 핵심은 냉동 수요 변동 시 일반창고로 전환 가능한 유연성입니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <!-- Scenario Inputs Display -->
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <h4 class="text-sm font-bold text-slate-700 mb-3">현재 적용 시나리오 가정</h4>
+                    <ul class="space-y-3 text-sm">
+                        <li class="flex justify-between">
+                            <span class="text-slate-500">냉동 임대료</span>
+                            <span class="font-bold text-blue-700" id="val-rent-cold">$18.0 /m²</span>
+                        </li>
+                        <li class="flex justify-between">
+                            <span class="text-slate-500">일반 임대료</span>
+                            <span class="font-bold text-slate-700" id="val-rent-dry">$5.0 /m²</span>
+                        </li>
+                        <li class="flex justify-between">
+                            <span class="text-slate-500">목표 가동률 (Y3)</span>
+                            <span class="font-bold text-emerald-600" id="val-occupancy">95%</span>
+                        </li>
+                        <li class="flex justify-between">
+                            <span class="text-slate-500">OPEX 비율</span>
+                            <span class="font-bold text-slate-600" id="val-opex">30%</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Revenue Chart -->
+                <div class="col-span-1 lg:col-span-2 chart-container h-64">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Comparison Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-center border">
+                    <thead class="bg-slate-100 text-slate-700 font-semibold">
+                        <tr>
+                            <th class="p-3 text-left">구분</th>
+                            <th class="p-3 border-l border-slate-200 text-slate-500">보수적 (Conservative)</th>
+                            <th class="p-3 border-l border-slate-200 bg-blue-50 text-blue-800">평균 (Base Case)</th>
+                            <th class="p-3 border-l border-slate-200 text-slate-500">공격적 (Aggressive)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        <tr>
+                            <td class="p-3 text-left font-medium">총 투자비 (CAPEX)</td>
+                            <td class="p-3 border-l">$22.0 M</td>
+                            <td class="p-3 border-l bg-blue-50 font-bold">$20.5 M</td>
+                            <td class="p-3 border-l">$18.5 M</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3 text-left font-medium">연 매출 (Year 3)</td>
+                            <td class="p-3 border-l">$3.5 M</td>
+                            <td class="p-3 border-l bg-blue-50 font-bold">$4.3 M</td>
+                            <td class="p-3 border-l">$5.1 M</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3 text-left font-medium">EBITDA</td>
+                            <td class="p-3 border-l">$2.1 M</td>
+                            <td class="p-3 border-l bg-blue-50 font-bold">$2.9 M</td>
+                            <td class="p-3 border-l">$3.8 M</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3 text-left font-medium">IRR (10년)</td>
+                            <td class="p-3 border-l text-amber-600">8.5%</td>
+                            <td class="p-3 border-l bg-blue-50 text-emerald-600 font-bold">14.5%</td>
+                            <td class="p-3 border-l text-emerald-700">21.5%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 5. Financial Analysis (Cash Flow & Sensitivity) -->
+        <section id="financials" class="section-card">
+            <h3 class="text-xl font-bold text-slate-800 mb-2 border-b pb-2">💰 3. 재무지표 및 민감도 분석 (Financial Projection)</h3>
+            <p class="text-slate-600 mb-6 text-sm">
+                초기 고비용 구조(냉동설비)로 인해 J커브 형태의 현금흐름을 보입니다. 
+                부채비율 70%(이자율 8% 가정) 시 약 6.8년 시점에 원금 회수가 가능합니다.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- Cash Flow Chart -->
+                <div class="chart-container">
+                    <h4 class="text-center text-sm font-bold text-slate-500 mb-2">10년 누적 현금흐름 (Cumulative Cash Flow)</h4>
+                    <canvas id="cashFlowChart"></canvas>
+                </div>
+
+                <!-- Sensitivity Analysis -->
+                <div class="chart-container">
+                    <h4 class="text-center text-sm font-bold text-slate-500 mb-2">민감도 분석 (IRR Impact Analysis)</h4>
+                    <canvas id="sensitivityChart"></canvas>
+                    <p class="text-xs text-center text-slate-400 mt-2">전력비 증가보다 임대료 하락 리스크가 수익성에 더 치명적입니다.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. Benchmarks -->
+        <section id="benchmarks" class="section-card">
+            <h3 class="text-xl font-bold text-slate-800 mb-2 border-b pb-2">🏢 4. 현지 벤치마크 비교 (Benchmark Comparison)</h3>
+            <p class="text-slate-600 mb-6 text-sm">
+                흥엔 및 하노이 인근의 최근 24개월 내 유사 프로젝트(물류/공단) 데이터와 비교입니다.
+            </p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left border">
+                    <thead class="bg-slate-100 text-slate-700">
+                        <tr>
+                            <th class="p-3">프로젝트</th>
+                            <th class="p-3">위치</th>
+                            <th class="p-3">유형</th>
+                            <th class="p-3">임대료 (Cold/Dry)</th>
+                            <th class="p-3">특이사항</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        <tr class="bg-blue-50">
+                            <td class="p-3 font-bold border-l-4 border-blue-500">TD Pacific (본건)</td>
+                            <td class="p-3">Hung Yen (Tan Dan)</td>
+                            <td class="p-3">Hybrid Hub</td>
+                            <td class="p-3">$18.0 / $5.0</td>
+                            <td class="p-3">보세 특화, 신축 프리미엄</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3 font-medium">Pho Noi A Cluster</td>
+                            <td class="p-3">Hung Yen</td>
+                            <td class="p-3">General Logistics</td>
+                            <td class="p-3">N/A / $4.5</td>
+                            <td class="p-3">노후화, 단순 창고 위주</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3 font-medium">Thang Long II</td>
+                            <td class="p-3">Hung Yen</td>
+                            <td class="p-3">Hi-Tech Mfg</td>
+                            <td class="p-3">$20.0 / $5.5</td>
+                            <td class="p-3">일본계 기업 선호, 공실 부족</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3 font-medium">Bac Ninh Cold Hub</td>
+                            <td class="p-3">Bac Ninh</td>
+                            <td class="p-3">Cold Storage</td>
+                            <td class="p-3">$22.0 / -</td>
+                            <td class="p-3">삼성 관련 수요 포화 상태</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="text-xs text-right text-slate-400 mt-2">* 데이터 출처: 현지 시장 리포트 (2025 Q4)</p>
+            </div>
+        </section>
+
+        <!-- 7. Conclusion -->
+        <section class="section-card bg-slate-900 text-white border-none">
+            <h3 class="text-xl font-bold text-white mb-4">🎯 5. 최종 결론 및 투자 전략 (Recommendation)</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-slate-800 p-4 rounded-lg">
+                    <h4 class="text-emerald-400 font-bold mb-2">✅ Go Decision Factor</h4>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        북부 콜드체인 공급 부족(30%) 상황에서 <strong>'보세 + 냉동' 복합 기능</strong>은 확실한 차별화 포인트입니다. 
+                        IRR 14.5%는 베트남 산업 부동산 평균(10~11%)을 상회하는 매력적인 수치입니다.
+                    </p>
+                </div>
+                <div class="bg-slate-800 p-4 rounded-lg">
+                    <h4 class="text-amber-400 font-bold mb-2">⚠️ Risk Management</h4>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        <strong>성토 비용 증가($2.5M)</strong>가 수익성을 갉아먹는 주범입니다. 
+                        토지주와의 JV 구조에서 이를 토지주 현물출자 가치에서 공제하거나, 초기 투입비로 인정받는 협상이 필수적입니다.
+                    </p>
+                </div>
+                <div class="bg-slate-800 p-4 rounded-lg">
+                    <h4 class="text-blue-400 font-bold mb-2">🚀 Action Plan</h4>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        1. <strong>선임대(Pre-lease):</strong> 착공 전 앵커 화주(50%) 확보 시 CAPEX 조달 금리 인하 가능. <br>
+                        2. <strong>단계적 개발:</strong> 5ha 전체 동시 개발보다, 수요가 확실한 구역부터 Phase 1 오픈 권장.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-200 py-6 text-center text-xs text-slate-500">
+        <p>Copyright © 2026 TD Pacific Vietnam Strategy Team. All Rights Reserved.</p>
+        <p>This digital report simulates financial outcomes based on market assumptions.</p>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- DATA & STATE ---
+        const scenarios = {
+            conservative: {
+                capex: 22000000,
+                unitCost: 850,
+                rentCold: 16.0,
+                rentDry: 4.5,
+                occupancy: 85,
+                opexRate: 0.35,
+                revenueY3: 3500000,
+                ebitda: 2100000,
+                irr: 8.5,
+                npv: -1200000,
+                payback: 8.2
+            },
+            average: {
+                capex: 20500000,
+                unitCost: 750,
+                rentCold: 18.0,
+                rentDry: 5.0,
+                occupancy: 95,
+                opexRate: 0.30,
+                revenueY3: 4300000,
+                ebitda: 2900000,
+                irr: 14.5,
+                npv: 4000000,
+                payback: 6.8
+            },
+            aggressive: {
+                capex: 18500000,
+                unitCost: 680,
+                rentCold: 20.0,
+                rentDry: 5.5,
+                occupancy: 100,
+                opexRate: 0.25,
+                revenueY3: 5100000,
+                ebitda: 3800000,
+                irr: 21.5,
+                npv: 8500000,
+                payback: 5.2
+            }
+        };
+
+        // CAPEX Breakdown Data (Fixed mostly, varies slightly by scenario total)
+        const capexBreakdownBase = [
+            { item: "토지 정지 및 기반시설 (Infrastructure)", unit: "Lump Sum", ratio: 0.122, cost: 2500000 },
+            { item: "건축 골조 및 마감 (Construction)", unit: "380~450", ratio: 0.40, cost: 8200000 },
+            { item: "냉동/냉장 특수 설비 (Cold Equip)", unit: "Lump Sum", ratio: 0.25, cost: 5125000 },
+            { item: "MEP 및 소방 (Electrical/Fire)", unit: "Lump Sum", ratio: 0.15, cost: 3075000 },
+            { item: "설계/감리/예비비 (Soft Cost)", unit: "Lump Sum", ratio: 0.078, cost: 1600000 }
+        ];
+
+        // Chart Instances
+        let capexChartInstance = null;
+        let revenueChartInstance = null;
+        let cashFlowChartInstance = null;
+        let sensitivityChartInstance = null;
+
+        // Current State
+        let currentScenario = 'average';
+
+        // --- FUNCTIONS ---
+
+        function formatUSD(num) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+        }
+
+        function formatMillions(num) {
+            return "$" + (num / 1000000).toFixed(2) + "M";
+        }
+
+        // 1. Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDashboard(currentScenario);
+            renderCapexTable(currentScenario);
+            initCharts();
+            updateCharts(currentScenario);
+        });
+
+        // 2. Navigation Scroll
+        window.scrollToSection = function(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 3. Scenario Logic
+        window.updateScenario = function(scenarioKey) {
+            currentScenario = scenarioKey;
+            
+            // Update Buttons UI
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active', 'bg-blue-900', 'text-white'));
+            document.getElementById(`btn-${scenarioKey}`).classList.add('active');
+
+            // Update Data Displays
+            renderDashboard(scenarioKey);
+            renderCapexTable(scenarioKey);
+            updateCharts(scenarioKey);
+        }
+
+        function renderDashboard(key) {
+            const data = scenarios[key];
+            document.getElementById('kpi-capex').innerText = formatMillions(data.capex);
+            document.getElementById('kpi-unit-cost').innerText = "$" + data.unitCost;
+            document.getElementById('kpi-irr').innerText = data.irr + "%";
+            document.getElementById('kpi-npv').innerText = formatMillions(data.npv);
+            document.getElementById('kpi-revenue').innerText = formatMillions(data.revenueY3);
+            document.getElementById('kpi-ebitda').innerText = formatMillions(data.ebitda);
+            document.getElementById('kpi-payback').innerText = data.payback + " Years";
+
+            // Update Assumption List
+            document.getElementById('val-rent-cold').innerText = "$" + data.rentCold.toFixed(1) + " /m²";
+            document.getElementById('val-rent-dry').innerText = "$" + data.rentDry.toFixed(1) + " /m²";
+            document.getElementById('val-occupancy').innerText = data.occupancy + "%";
+            document.getElementById('val-opex').innerText = (data.opexRate * 100).toFixed(0) + "%";
+        }
+
+        function renderCapexTable(key) {
+            const totalCapex = scenarios[key].capex;
+            const tbody = document.getElementById('capex-table-body');
+            tbody.innerHTML = '';
+            
+            // Recalculate based on total ratio for simplicity in this demo
+            let runningTotal = 0;
+            capexBreakdownBase.forEach((row, index) => {
+                const calculatedCost = totalCapex * row.ratio;
+                runningTotal += calculatedCost;
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3 text-left font-medium text-slate-700">${row.item}</td>
+                    <td class="p-3 text-slate-500">${row.unit}</td>
+                    <td class="p-3 text-slate-900">${formatUSD(calculatedCost)}</td>
+                    <td class="p-3 text-slate-500">${(row.ratio * 100).toFixed(1)}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            document.getElementById('capex-total-display').innerText = formatUSD(totalCapex);
+        }
+
+        // 4. Chart Logic
+        function initCharts() {
+            Chart.defaults.font.family = "'Noto Sans KR', sans-serif";
+            Chart.defaults.color = '#64748b';
+
+            // --- CAPEX Chart (Doughnut) ---
+            const ctxCapex = document.getElementById('capexChart').getContext('2d');
+            capexChartInstance = new Chart(ctxCapex, {
+                type: 'doughnut',
+                data: {
+                    labels: capexBreakdownBase.map(i => i.item.split(' (')[0]),
+                    datasets: [{
+                        data: [1,1,1,1,1], // Placeholder, updated later
+                        backgroundColor: ['#e2e8f0', '#3b82f6', '#0ea5e9', '#f59e0b', '#64748b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right' }
+                    }
+                }
+            });
+
+            // --- Revenue Chart (Bar) ---
+            const ctxRevenue = document.getElementById('revenueChart').getContext('2d');
+            revenueChartInstance = new Chart(ctxRevenue, {
+                type: 'bar',
+                data: {
+                    labels: ['Year 1 (Ramp-up)', 'Year 2 (Stabilizing)', 'Year 3 (Mature)', 'Year 4', 'Year 5'],
+                    datasets: [
+                        { label: 'Revenue', data: [], backgroundColor: '#3b82f6', borderRadius: 4 },
+                        { label: 'OPEX', data: [], backgroundColor: '#cbd5e1', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { callback: function(value){ return '$' + value/1000000 + 'M'} } }
+                    }
+                }
+            });
+
+            // --- Cash Flow Chart (Mixed) ---
+            const ctxCashFlow = document.getElementById('cashFlowChart').getContext('2d');
+            cashFlowChartInstance = new Chart(ctxCashFlow, {
+                type: 'bar',
+                data: {
+                    labels: ['Y0', 'Y1', 'Y2', 'Y3', 'Y4', 'Y5', 'Y6', 'Y7', 'Y8', 'Y9', 'Y10'],
+                    datasets: [
+                        { 
+                            type: 'line', 
+                            label: '누적 현금흐름 (Cumulative)', 
+                            data: [], 
+                            borderColor: '#059669', 
+                            borderWidth: 3, 
+                            pointBackgroundColor: '#fff',
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        },
+                        { 
+                            type: 'bar', 
+                            label: '연간 순현금흐름 (Net CF)', 
+                            data: [], 
+                            backgroundColor: '#94a3b8', 
+                            borderRadius: 2,
+                            yAxisID: 'y'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { 
+                            position: 'left',
+                            grid: { display: false },
+                            ticks: { callback: function(value){ return '$' + value/1000000 + 'M'} }
+                        },
+                        y1: { 
+                            position: 'right',
+                            grid: { color: '#e2e8f0' },
+                            ticks: { callback: function(value){ return '$' + value/1000000 + 'M'} }
+                        }
+                    }
+                }
+            });
+
+            // --- Sensitivity Chart (Horizontal Bar) ---
+            const ctxSensitivity = document.getElementById('sensitivityChart').getContext('2d');
+            sensitivityChartInstance = new Chart(ctxSensitivity, {
+                type: 'bar',
+                indexAxis: 'y',
+                data: {
+                    labels: ['전력비 상승 (+10%)', '환율 변동 (VND 약세)', '공실률 증가 (+5%)', '임대료 하락 (-10%)'],
+                    datasets: [{
+                        label: 'IRR Impact (%)',
+                        data: [-0.8, -1.2, -1.5, -2.8],
+                        backgroundColor: (context) => {
+                            const val = context.raw;
+                            return val < -2 ? '#ef4444' : '#f59e0b';
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { 
+                            title: { display: true, text: 'IRR 하락폭 (%p)' },
+                            min: -4, max: 0
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCharts(key) {
+            const data = scenarios[key];
+
+            // 1. CAPEX Update
+            capexChartInstance.data.datasets[0].data = capexBreakdownBase.map(row => data.capex * row.ratio);
+            capexChartInstance.update();
+
+            // 2. Revenue Update (Simulated Ramp up)
+            // Y1: 60%, Y2: 85%, Y3+: Target
+            const revMax = data.revenueY3;
+            const opexMax = data.revenueY3 * data.opexRate;
+            
+            const revenues = [revMax * 0.6, revMax * 0.85, revMax, revMax * 1.02, revMax * 1.04];
+            const opexs = [opexMax * 0.9, opexMax * 0.95, opexMax, opexMax * 1.02, opexMax * 1.04];
+            
+            revenueChartInstance.data.datasets[0].data = revenues;
+            revenueChartInstance.data.datasets[1].data = opexs;
+            revenueChartInstance.update();
+
+            // 3. Cash Flow Update
+            // Simple simulation: Investment at Y0, then Net CF (Rev - Opex - Tax/Interest approx)
+            const cfY0 = -data.capex * 0.3; // Equity portion only for cash flow view usually, but lets show Project CF
+            const projectCF = [-data.capex]; // Total Investment
+            let cumulative = -data.capex;
+            const cumulativeData = [cumulative];
+
+            for(let i=1; i<=10; i++) {
+                // Simplified ramp up logic same as revenue
+                let factor = 1.0;
+                if(i===1) factor = 0.5;
+                if(i===2) factor = 0.8;
+                
+                const operatingIncome = (data.ebitda * factor); 
+                projectCF.push(operatingIncome);
+                cumulative += operatingIncome;
+                cumulativeData.push(cumulative);
+            }
+
+            cashFlowChartInstance.data.datasets[0].data = cumulativeData; // Line
+            cashFlowChartInstance.data.datasets[1].data = projectCF; // Bar
+            cashFlowChartInstance.update();
+        }
+
+    </script>
+</body>
+</html>
